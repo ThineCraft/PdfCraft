@@ -518,7 +518,7 @@ fn dialog_body(ui: &mut egui::Ui, app: &mut PdfCraftApp, dialog: Dialog, req: &m
             }
         }
         Dialog::About => {
-            if !dialog_about(ui, req) {
+            if !dialog_about(ui) {
                 return false;
             }
         }
@@ -1644,7 +1644,7 @@ fn dialog_shortcuts(ui: &mut egui::Ui) -> bool {
 }
 
 /// `Dialog::About` content. Returns `false` when it has its own buttons and no footer is wanted.
-fn dialog_about(ui: &mut egui::Ui, req: &mut Pending) -> bool {
+fn dialog_about(ui: &mut egui::Ui) -> bool {
     let t = Tokens::get(ui.ctx());
     // Tabs About · Contributors · Models.
     let tab_id = egui::Id::unique("about_tab");
@@ -1664,7 +1664,6 @@ fn dialog_about(ui: &mut egui::Ui, req: &mut Pending) -> bool {
         2 => crate::credits::models_ui(ui),
         _ => {
             ui.horizontal(|ui| {
-                widgets::artcraft_mark(ui, 40.0);
                 ui.vertical(|ui| {
                     ui.label(egui::RichText::new("PdfCraft").font(theme::semibold(20.0)));
                     ui.label(crate::i18n::fmt(tl!("Version {v}"), &[("v", &pdfcraft_engine::build_info::version())]));
@@ -1680,14 +1679,7 @@ fn dialog_about(ui: &mut egui::Ui, req: &mut Pending) -> bool {
                 .small(),
             );
             ui.add_space(12.0);
-            ui.horizontal(|ui| {
-                ui.label(egui::RichText::new(tl!("Part of")).color(t.text_muted));
-                widgets::artcraft_logo(ui, 16.0);
-            });
-            ui.add_space(6.0);
-            if let Some(cmd) = widgets::community_links(ui) {
-                req.link_command = Some(cmd);
-            }
+            ui.label(egui::RichText::new(tl!("Based on PdfCraft by the ArtCraft team.")).color(t.text_muted));
         }
     }
     true

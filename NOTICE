@@ -3,9 +3,8 @@ Copyright (c) 2026 ArtCraft Team and the PdfCraft contributors.
 Licensed under the MIT License or the Apache License, Version 2.0, at your option
 (LICENSE-MIT, LICENSE-APACHE).
 
-The ArtCraft name, wordmark and logos in docs/brand/ are trademarks of the ArtCraft Team. They are
-not open source and are not covered by the license above; their terms are in
-docs/brand/LICENSE-brand.txt.
+The ArtCraft name is a trademark of the ArtCraft Team. This modified version does not include the
+ArtCraft wordmark or logos (they were not open source and are not covered by the license above).
 
 Third-party material
 
@@ -105,3 +104,12 @@ Permission is hereby granted, free of charge, to any person obtaining a copy of 
 The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
 
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+Changes made for ShareCraft
+
+This is a modified version of PdfCraft maintained by ThineCraft at https://github.com/ThineCraft/PdfCraft and is not the original (2026-11-10)
+The original is https://github.com/storytold/pdfcraft; this version is not made or endorsed by the ArtCraft team or Tangency Labs (2026-11-10)
+
+- Removed the ArtCraft wordmark and mark (docs/brand/ and the widgets that drew them) and the ArtCraft license for them (docs/brand/LICENSE-brand.txt); the About dialog now says "Based on PdfCraft by the ArtCraft team." (2026-11-10)
+- Removed the ArtCraft Discord and website links, the home screen community card, the title-bar Discord button and the "PdfCraft web page" link from the Help menu, the About dialog, the home screen, the command registry and the command-line tool (crates/engine/src/links.rs, crates/engine/src/commands.rs, crates/ui-egui, apps/pdfcraft-cli) (2026-11-10)
+- Removed the docs/brand/ entries from ATTRIBUTION.toml, ATTRIBUTION.md and LICENSES.toml, and the docs/brand/ images from README.md (2026-11-10)

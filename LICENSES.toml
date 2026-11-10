@@ -49,11 +49,6 @@ destination = "assets/icons/LICENSE-lucide.txt"
 sha256 = "b495047bd93a9b06913511076f504daba17d5bbeb3e0650f3bb53a4220329c57"
 
 [[document]]
-source = "docs/brand/LICENSE-brand.txt"
-destination = "docs/brand/LICENSE-brand.txt"
-sha256 = "0f33f48e7a96cd359d4e4e5b11424b13cebeb59cc70c77928186695e4173585c"
-
-[[document]]
 source = "licenses/CMap-LICENSE.txt"
 licences = ["BSD-3-Clause"]
 destination = "licenses/CMap-LICENSE.txt"
