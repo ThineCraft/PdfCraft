@@ -28,8 +28,11 @@ impl crate::PdfCraftApp {
                 }
             }
             Action::Reopen => {
+                // A hosted page opens no other file (`files_locked`).
                 #[cfg(not(target_arch = "wasm32"))]
-                if let Some(path) = self.closed_tabs.last().cloned() {
+                if !self.files_locked
+                    && let Some(path) = self.closed_tabs.last().cloned()
+                {
                     // A tab may already have been reopened through File > Open.
                     if let Some(index) = self.views.iter().position(|v| self.session.get(v.id).is_some_and(|d| d.path.as_deref() == Some(&path))) {
                         self.active = Some(index);

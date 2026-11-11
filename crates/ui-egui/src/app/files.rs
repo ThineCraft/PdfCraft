@@ -88,6 +88,45 @@ impl PdfCraftApp {
         self.open_bytes_with_focus(name, path, bytes, true)
     }
 
+    /// The host's own opens (`host_inbox`), one at a time: one may ask for its password first.
+    pub(super) fn open_next_host_delivery(&mut self) {
+        if self.password_prompt.is_some() {
+            return;
+        }
+        let next = self.host_inbox.lock().ok().and_then(|mut q| (!q.is_empty()).then(|| q.remove(0)));
+        if let Some((name, bytes)) = next
+            && let Err(e) = self.open_host_bytes(&name, bytes)
+        {
+            self.notify_fmt("Couldn't open {name}: {e}", &[("name", &name), ("e", &e)]);
+        }
+    }
+
+    /// Open the host page's delivery (`host_inbox`) in front. The tab it becomes, now or once its
+    /// password is in, is the host's document (`host_doc`).
+    pub(super) fn open_host_bytes(&mut self, name: &str, bytes: Vec<u8>) -> Result<(), String> {
+        self.apply_status_captions(i18n::Lang::from_pref(&self.language));
+        let bytes = std::sync::Arc::new(bytes);
+        self.host_bytes = Some(bytes.clone());
+        let before = self.views.len();
+        if let Some(r) = self.open_converted(name, &bytes) {
+            if r.is_ok() && self.views.len() > before {
+                self.host_doc = self.views.last().map(|v| v.id);
+                self.host_bytes = None;
+            }
+            return r;
+        }
+        self.try_open(name, None, bytes, None, true)
+    }
+
+    /// Document `id` was opened from `bytes`: when those are the host's open, it is the host's
+    /// document (`host_doc`).
+    fn adopt_host_doc(&mut self, id: DocId, bytes: &std::sync::Arc<Vec<u8>>) {
+        if self.host_bytes.as_ref().is_some_and(|host| std::sync::Arc::ptr_eq(host, bytes)) {
+            self.host_doc = Some(id);
+            self.host_bytes = None;
+        }
+    }
+
     pub(super) fn open_bytes_with_focus(&mut self, name: &str, path: Option<String>, bytes: Vec<u8>, activate: bool) -> Result<(), String> {
         // Files opened before the first frame (the ones named at startup) are drawn once, in the
         // interface language, rather than in English and again when the frame applies it.
@@ -246,6 +285,7 @@ impl PdfCraftApp {
             open_worker::ResultKind::Prepared { bytes, result } => match *result {
                 Ok(prepared) => match self.finish_open(&pending.name, pending.path.clone(), bytes.len(), prepared, pending.activate) {
                     Ok(id) => {
+                        self.adopt_host_doc(id, &bytes);
                         if pending.path.is_some() {
                             self.watch.known_as(id, pending.stamp);
                         }
@@ -327,7 +367,9 @@ impl PdfCraftApp {
             }
             Err(e) => return Err(e.to_string()),
         };
-        self.finish_open(name, path, bytes.len(), prepared, activate).map(|_| ())
+        let id = self.finish_open(name, path, bytes.len(), prepared, activate)?;
+        self.adopt_host_doc(id, &bytes);
+        Ok(())
     }
 
     /// Add a prepared document as a tab: its view, the panels it opens with, a portfolio's file list

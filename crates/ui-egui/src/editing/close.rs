@@ -16,9 +16,9 @@ pub enum CloseRequest {
 impl PdfCraftApp {
     /// Close a tab, asking first if it has unsaved changes. A document under OCR review stays
     /// open until the review is accepted or rejected.
-    /// A hosted page keeps its tabs (`files_locked`).
+    /// A hosted page keeps the host's document's tab (`keeps_tab`); views opened from it close.
     pub fn request_close_tab(&mut self, index: usize) {
-        if self.files_locked || self.hold_close_for_ocr_review(index) {
+        if self.keeps_tab(index) || self.hold_close_for_ocr_review(index) {
             return;
         }
         // Text typed into a field counts as an unsaved change. Another tab of the document (split

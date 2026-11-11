@@ -531,6 +531,9 @@ pub struct PdfCraftApp {
     /// The browser's startup `?file=` download. Unlike a deliberate Open or drop, a late
     /// arrival opens in the background once the user has started working (#171).
     pub startup_inbox: Inbox,
+    /// The host page's own opens (web `?host=parent`). Each opens in front, and the document it
+    /// becomes is the host's (`host_doc`), the one a hosted save stores.
+    pub host_inbox: Inbox,
     startup_superseded: bool,
     /// Asynchronous opens that failed (web `?file=` fetches), shown as a notice.
     pub failed_inbox: FailedInbox,
@@ -545,10 +548,14 @@ pub struct PdfCraftApp {
     /// save can only ever store that document. The host's own open (`startup_inbox`) and its
     /// commands through [`PdfCraftApp::execute`] still run. Off unless the web build is hosted.
     pub files_locked: bool,
-    /// On a hosted page, the document the host opened: the first tab there is. Save stores it
-    /// whichever tab is in front, and stores nothing once it is gone (see `save_then`), so a view
-    /// opened from it (an attachment, a revision, a comment summary) never replaces it at the host.
+    /// The document the host's latest open (`host_inbox`) became. On a hosted page Save stores it
+    /// whichever tab is in front, and nothing before it exists or once its tab is gone (see
+    /// `save_then`): no other document (a view opened from it, a Combine result, a `?file=`
+    /// startup file) is ever stored at the host.
     host_doc: Option<pdfcraft_engine::DocId>,
+    /// The host's open still waiting for its tab (a password prompt): its tab becomes `host_doc`.
+    /// Told apart from other opens by the very bytes, which every open path keeps.
+    host_bytes: Option<std::sync::Arc<Vec<u8>>>,
     /// Reports unsaved work, or an open OCR review, to the embedding page (web, see [`HostDirtyFn`]).
     pub host_dirty: Option<HostDirtyFn>,
     /// A pending "save changes?" question (closing a dirty tab or quitting).

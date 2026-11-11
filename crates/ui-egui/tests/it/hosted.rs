@@ -52,7 +52,10 @@ fn harness(locked: bool, open: bool, pick: &std::path::Path) -> Harness<'static,
     let mut h = Harness::builder().with_size(egui::vec2(1400.0, 900.0)).build_eframe(move |_cc| {
         let mut app = PdfCraftApp::new();
         app.set_option("language", "en").unwrap();
-        if open {
+        if open && locked {
+            // The host's own open, as the bridge delivers it.
+            app.host_inbox.lock().unwrap().push(("hosted.pdf".into(), fixture(3)));
+        } else if open {
             app.open_bytes("hosted.pdf", None, fixture(3)).unwrap();
         }
         app.files_locked = locked;
@@ -160,11 +163,92 @@ fn locked_drops_are_ignored() {
 #[test]
 fn locked_host_open_still_opens() {
     let pick = picked_file("host-open");
+    let out = pick.parent().unwrap().join("saved.pdf");
     let mut h = harness(true, false, &pick);
-    h.state().startup_inbox.lock().unwrap().push(("hosted.pdf".into(), fixture(3)));
+    h.state().host_inbox.lock().unwrap().push(("hosted.pdf".into(), fixture(3)));
     frames(&mut h);
     still_one_tab(&h, "the host's open");
-    assert!(h.state().startup_inbox.lock().unwrap().is_empty());
+    assert!(h.state().host_inbox.lock().unwrap().is_empty());
+    // And it is the document a save stores.
+    h.state_mut().save_override = Some(out.to_string_lossy().into_owned());
+    assert!(h.state_mut().execute("file.save"));
+    support::wait_until(&mut h, "the saved file", |_| out.exists());
+    assert_eq!(page_count(&out), 3, "the host's document was saved");
+    let _ = std::fs::remove_dir_all(pick.parent().unwrap());
+}
+
+/// Only the host's own open makes the host's document. One made another way first (a Combine
+/// result, through the same path as `open_bytes`, or a `?file=` startup URL) is never stored at
+/// the host, before the host's open arrives or after.
+#[test]
+fn locked_combine_result_is_not_the_host_document() {
+    let pick = picked_file("combine-first");
+    let out = pick.parent().unwrap().join("saved.pdf");
+    let mut h = harness(true, false, &pick);
+    h.state_mut().open_bytes("Combined.pdf", None, fixture(5)).unwrap();
+    h.state().startup_inbox.lock().unwrap().push(("startup.pdf".into(), fixture(4)));
+    frames(&mut h);
+    assert_eq!(h.state().views.len(), 2);
+    h.state_mut().save_override = Some(out.to_string_lossy().into_owned());
+    h.state_mut().execute("file.save");
+    frames(&mut h);
+    assert!(!out.exists(), "nothing is stored before the host's document exists");
+    h.state().host_inbox.lock().unwrap().push(("hosted.pdf".into(), fixture(3)));
+    frames(&mut h);
+    assert_eq!(h.state().views.len(), 3);
+    h.state_mut().active = Some(0);
+    assert!(h.state_mut().execute("file.save"));
+    support::wait_until(&mut h, "the saved file", |_| out.exists());
+    assert_eq!(page_count(&out), 3, "the host's document was saved, not the one opened first");
+    let _ = std::fs::remove_dir_all(pick.parent().unwrap());
+}
+
+/// The host's document behind a password is still the host's once unlocked, after a wrong
+/// password, with another document (a Combine result) opened before it.
+#[test]
+fn locked_host_open_behind_a_password_is_the_host_document() {
+    use pdfcraft_engine::{Edit, Protection, Session};
+    let mut s = Session::new();
+    let id = s.open("encrypted.pdf", None, std::sync::Arc::new(fixture(1)), None).unwrap();
+    s.apply(id, Edit::Protect(Protection { open_password: Some("test-password".into()), ..Default::default() })).unwrap();
+    let encrypted = s.save_bytes(id).unwrap().as_ref().clone();
+
+    let pick = picked_file("host-password");
+    let out = pick.parent().unwrap().join("saved.pdf");
+    let mut h = harness(true, false, &pick);
+    h.state_mut().open_bytes("Combined.pdf", None, fixture(5)).unwrap();
+    h.state().host_inbox.lock().unwrap().push(("hosted.pdf".into(), encrypted));
+    h.run_steps(2);
+    assert!(h.state().password_prompt.is_some(), "the host's document asks for its password");
+    h.state_mut().submit_password(Some("wrong-password".into()));
+    support::wait_until(&mut h, "the wrong-password reply", |app| app.password_prompt.as_ref().is_some_and(|p| p.error.is_some()));
+    h.state_mut().submit_password(Some("test-password".into()));
+    support::wait_until(&mut h, "the unlocked document", |app| app.password_prompt.is_none() && app.views.len() == 2);
+    let other = h.state().views.iter().position(|v| h.state().session.get(v.id).unwrap().name == "Combined.pdf").unwrap();
+    h.state_mut().active = Some(other);
+    h.state_mut().save_override = Some(out.to_string_lossy().into_owned());
+    assert!(h.state_mut().execute("file.save"));
+    support::wait_until(&mut h, "the saved file", |_| out.exists());
+    // A native save names the document after the file it wrote: that is the one-page host's.
+    let saved = h.state().session.docs().iter().find(|d| d.name == "saved.pdf").map(|d| d.info.pages.len());
+    assert_eq!(saved, Some(1), "the host's document was saved, not Combined.pdf");
+    let _ = std::fs::remove_dir_all(pick.parent().unwrap());
+}
+
+/// A view opened from the host's document can be closed; the host's own tab can't.
+#[test]
+fn locked_derived_tab_can_close() {
+    let pick = picked_file("derived-close");
+    let mut h = harness(true, true, &pick);
+    h.state_mut().open_bytes("summary.pdf", None, fixture(5)).unwrap();
+    h.run_steps(2);
+    assert_eq!(h.state().views.len(), 2);
+    h.state_mut().request_close_tab(1);
+    frames(&mut h);
+    still_one_tab(&h, "closing the derived view");
+    h.state_mut().request_close_tab(0);
+    frames(&mut h);
+    still_one_tab(&h, "closing the host's tab");
     let _ = std::fs::remove_dir_all(pick.parent().unwrap());
 }
 

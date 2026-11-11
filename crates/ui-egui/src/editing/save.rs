@@ -40,23 +40,19 @@ impl PdfCraftApp {
     }
 
     /// The tab Save stores: the one in front, or on a hosted page the host's document's tab
-    /// (`host_doc`), whichever tab is in front; `None` once that tab is gone.
-    fn save_tab(&mut self) -> Option<usize> {
+    /// (`host_doc`), whichever tab is in front; `None` before the host's document opens and once
+    /// its tab is gone.
+    fn save_tab(&self) -> Option<usize> {
         if !self.files_locked {
             return self.active;
         }
-        self.note_host_doc();
         let host = self.host_doc?;
         self.views.iter().position(|v| v.id == host)
     }
 
-    /// On a hosted page, remember the first document to get a tab as the host's (`host_doc`).
-    /// Nothing else can open first: the person can't open files there, and every other tab is a
-    /// view opened from a document already showing.
-    pub(crate) fn note_host_doc(&mut self) {
-        if self.files_locked && self.host_doc.is_none() {
-            self.host_doc = self.views.first().map(|v| v.id);
-        }
+    /// Whether tab `index` shows the host's document on a hosted page, which keeps that tab open.
+    pub(crate) fn keeps_tab(&self, index: usize) -> bool {
+        self.files_locked && self.host_doc.is_some() && self.views.get(index).map(|v| v.id) == self.host_doc
     }
 
     /// Save the document shown in tab `index`. Returns `true` if it was written now. When it has
@@ -77,7 +73,6 @@ impl PdfCraftApp {
         }
         let Some(id) = self.views.get(index).map(|v| v.id) else { return false };
         // A hosted page stores only the host's document: never another tab in its place.
-        self.note_host_doc();
         if self.files_locked && self.host_doc != Some(id) {
             return false;
         }

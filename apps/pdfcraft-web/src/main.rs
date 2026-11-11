@@ -62,10 +62,12 @@ fn main() {
                         {
                             app.comment_prefs.author = author.chars().take(200).collect();
                         }
-                        bridge.listen(app.startup_inbox.clone(), cc.egui_ctx.clone());
+                        // The host's opens have a queue of their own: the document each becomes is
+                        // the one a save stores at the host (`host_inbox`).
+                        bridge.listen(app.host_inbox.clone(), cc.egui_ctx.clone());
                         app.host_save = Some(bridge.save_fn());
-                        // The host gave this page one document, and saves store the active tab:
-                        // no opening, creating or closing tabs here.
+                        // The host gave this page one document, and saves store that document
+                        // whichever tab is in front: no opening, creating or closing it here.
                         app.files_locked = true;
                         app.host_dirty = Some(bridge.dirty_fn());
                         bridge.post_ready();

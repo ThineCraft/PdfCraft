@@ -152,7 +152,7 @@ pub fn tab_strip(app: &mut PdfCraftApp, ui: &mut egui::Ui) {
                                         cap,
                                         height: tab_h,
                                         draggable: true,
-                                        closable: !app.files_locked,
+                                        closable: !app.keeps_tab(i),
                                     },
                                     &mut close,
                                 );
@@ -296,11 +296,12 @@ fn appearance_menu(app: &mut PdfCraftApp, ui: &mut egui::Ui) {
 fn tab_menu(app: &PdfCraftApp, ui: &mut egui::Ui, index: usize, action: &mut Option<Action>) {
     let Some(view) = app.views.get(index) else { return };
     let (tab, id) = (view.view_key(), view.id);
-    if ui.add_enabled(!app.files_locked, egui::Button::new(tl!("Close Tab"))).clicked() {
+    if ui.add_enabled(!app.keeps_tab(index), egui::Button::new(tl!("Close Tab"))).clicked() {
         *action = Some(Action::Close(tab));
         ui.close();
     }
-    if ui.add_enabled(!app.closed_tabs.is_empty(), egui::Button::new(tl!("Reopen Closed Tab"))).clicked() {
+    // A hosted page opens no other file (`files_locked`).
+    if ui.add_enabled(!app.files_locked && !app.closed_tabs.is_empty(), egui::Button::new(tl!("Reopen Closed Tab"))).clicked() {
         *action = Some(Action::Reopen);
         ui.close();
     }
@@ -402,7 +403,7 @@ pub(crate) fn pane_tab_strip(app: &mut PdfCraftApp, ui: &mut egui::Ui, strip: Re
             cap,
             height: inner.height(),
             draggable: true,
-            closable: !app.files_locked,
+            closable: !app.keeps_tab(i),
         };
         let response = tab(&mut row, spec, &mut close);
         slots.push((i, response.rect));
@@ -520,7 +521,7 @@ struct TabSpec<'a> {
     cap: Option<f32>,
     height: f32,
     draggable: bool,
-    /// Has a close button (a hosted page's document tab has none, `files_locked`).
+    /// Has a close button (the host's document's tab on a hosted page has none, `keeps_tab`).
     closable: bool,
 }
 

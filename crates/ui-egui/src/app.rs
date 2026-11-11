@@ -190,6 +190,7 @@ impl PdfCraftApp {
             full_screen: false,
             inbox: Default::default(),
             startup_inbox: Default::default(),
+            host_inbox: Default::default(),
             startup_superseded: false,
             failed_inbox: Default::default(),
             unsaved_flag: Default::default(),
@@ -197,6 +198,7 @@ impl PdfCraftApp {
             host_save: None,
             files_locked: false,
             host_doc: None,
+            host_bytes: None,
             host_dirty: None,
             close_request: None,
             save_prompt_button: Default::default(),
@@ -615,8 +617,8 @@ impl PdfCraftApp {
                     self.notify_fmt("Couldn't open {name}: {e}", &[("name", &name), ("e", &e)]);
                 }
             }
+            self.open_next_host_delivery();
         }
-        self.note_host_doc();
         let failed: Vec<(String, String)> = self.failed_inbox.lock().map(|mut q| std::mem::take(&mut *q)).unwrap_or_default();
         for (name, e) in failed {
             self.notify_fmt("Couldn't open {name}: {e}", &[("name", &name), ("e", &e)]);
