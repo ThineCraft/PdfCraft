@@ -33,9 +33,29 @@ pub enum SaveTarget {
 impl PdfCraftApp {
     /// Save the active document. Returns `true` if it was written.
     pub fn save_active(&mut self, target: SaveTarget) -> bool {
-        match self.active {
+        match self.save_tab() {
             Some(i) => self.save_view(i, target),
             None => false,
+        }
+    }
+
+    /// The tab Save stores: the one in front, or on a hosted page the host's document's tab
+    /// (`host_doc`), whichever tab is in front; `None` once that tab is gone.
+    fn save_tab(&mut self) -> Option<usize> {
+        if !self.files_locked {
+            return self.active;
+        }
+        self.note_host_doc();
+        let host = self.host_doc?;
+        self.views.iter().position(|v| v.id == host)
+    }
+
+    /// On a hosted page, remember the first document to get a tab as the host's (`host_doc`).
+    /// Nothing else can open first: the person can't open files there, and every other tab is a
+    /// view opened from a document already showing.
+    pub(crate) fn note_host_doc(&mut self) {
+        if self.files_locked && self.host_doc.is_none() {
+            self.host_doc = self.views.first().map(|v| v.id);
         }
     }
 
@@ -56,6 +76,11 @@ impl PdfCraftApp {
             return false;
         }
         let Some(id) = self.views.get(index).map(|v| v.id) else { return false };
+        // A hosted page stores only the host's document: never another tab in its place.
+        self.note_host_doc();
+        if self.files_locked && self.host_doc != Some(id) {
+            return false;
+        }
         // A signature just placed with Fill & Sign is a removable comment unless it is flattened:
         // ask once whether to lock it into the page (#2149). Only while a Fill & Sign mark is still
         // there (undo may have taken it away), and never on a digitally signed document: locking

@@ -185,6 +185,53 @@ fn locked_execute_save_still_runs() {
     let _ = std::fs::remove_dir_all(pick.parent().unwrap());
 }
 
+fn page_count(path: &std::path::Path) -> usize {
+    pdfcraft_render::PageRenderer::new(std::sync::Arc::new(std::fs::read(path).unwrap()), Default::default()).page_count()
+}
+
+/// Another tab can still appear on a hosted page (an attachment, a revision, a comment summary:
+/// views of the document). Save stores the host's document whichever tab is in front. Tested on
+/// the native save path (`save_override`); in the browser the same choice of tab feeds `host_save`.
+#[test]
+fn locked_save_stores_the_host_tab_when_another_is_active() {
+    let pick = picked_file("save-host-tab");
+    let out = pick.parent().unwrap().join("saved.pdf");
+    let mut h = harness(true, true, &pick);
+    // A second tab, as a derived view opens one: five pages, where the host's document has three.
+    h.state_mut().open_bytes("summary.pdf", None, fixture(5)).unwrap();
+    h.run_steps(2);
+    assert_eq!(h.state().views.len(), 2);
+    h.state_mut().active = Some(1);
+    h.state_mut().save_override = Some(out.to_string_lossy().into_owned());
+    assert!(h.state_mut().execute("file.save"));
+    support::wait_until(&mut h, "the saved file", |_| out.exists());
+    assert_eq!(page_count(&out), 3, "the host's document was saved, not the tab in front");
+    // Ctrl+S takes the same path.
+    std::fs::remove_file(&out).unwrap();
+    shortcut(&mut h, Key::S, Modifiers::COMMAND);
+    support::wait_until(&mut h, "the saved file", |_| out.exists());
+    assert_eq!(page_count(&out), 3, "Ctrl+S saved the host's document");
+    let _ = std::fs::remove_dir_all(pick.parent().unwrap());
+}
+
+/// With the host's tab gone, a hosted save stores nothing rather than another tab.
+#[test]
+fn locked_save_refuses_when_the_host_tab_is_gone() {
+    let pick = picked_file("save-host-gone");
+    let out = pick.parent().unwrap().join("saved.pdf");
+    let mut h = harness(true, true, &pick);
+    h.state_mut().open_bytes("summary.pdf", None, fixture(5)).unwrap();
+    h.run_steps(2);
+    h.state_mut().close_tab(0);
+    h.run_steps(2);
+    assert_eq!(h.state().views.len(), 1);
+    h.state_mut().save_override = Some(out.to_string_lossy().into_owned());
+    h.state_mut().execute("file.save");
+    frames(&mut h);
+    assert!(!out.exists(), "another tab was stored as the host's document");
+    let _ = std::fs::remove_dir_all(pick.parent().unwrap());
+}
+
 #[test]
 fn unlocked_open_dialog_still_works() {
     let pick = picked_file("unlocked");

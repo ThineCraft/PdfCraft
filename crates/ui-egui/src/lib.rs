@@ -545,6 +545,10 @@ pub struct PdfCraftApp {
     /// save can only ever store that document. The host's own open (`startup_inbox`) and its
     /// commands through [`PdfCraftApp::execute`] still run. Off unless the web build is hosted.
     pub files_locked: bool,
+    /// On a hosted page, the document the host opened: the first tab there is. Save stores it
+    /// whichever tab is in front, and stores nothing once it is gone (see `save_then`), so a view
+    /// opened from it (an attachment, a revision, a comment summary) never replaces it at the host.
+    host_doc: Option<pdfcraft_engine::DocId>,
     /// Reports unsaved work, or an open OCR review, to the embedding page (web, see [`HostDirtyFn`]).
     pub host_dirty: Option<HostDirtyFn>,
     /// A pending "save changes?" question (closing a dirty tab or quitting).
