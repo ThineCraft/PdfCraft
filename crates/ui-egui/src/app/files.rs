@@ -753,6 +753,9 @@ impl PdfCraftApp {
     /// Open a file from a recent list: focus the tab already showing it, else open it (File ▸
     /// Open Recent and the Home view's list share this).
     pub fn open_recent(&mut self, path: &str) {
+        if self.files_locked {
+            return;
+        }
         if let Some(i) = self.tab_showing(path) {
             self.active = Some(i);
         } else {
@@ -944,6 +947,9 @@ impl PdfCraftApp {
     }
 
     pub fn open_dialog(&mut self) {
+        if self.files_locked {
+            return;
+        }
         self.startup_superseded = true;
         #[cfg(not(target_arch = "wasm32"))]
         self.pick(

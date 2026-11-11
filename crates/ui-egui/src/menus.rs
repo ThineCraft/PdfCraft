@@ -501,6 +501,8 @@ impl PdfCraftApp {
                 PANEL => panel(command).is_some(),
                 id => enabled_id(id),
             };
+        // A hosted page's Open, Open Recent, Close and New stay greyed (`files_locked`).
+        let enabled = enabled && !self.locked_out(&command.id);
         let checked = match command.id.as_str() {
             "view.layout.single" => Some(view.is_some_and(|v| v.layout == PageLayout::Single)),
             "view.layout.two_up" => Some(view.is_some_and(|v| v.layout == PageLayout::TwoUp)),

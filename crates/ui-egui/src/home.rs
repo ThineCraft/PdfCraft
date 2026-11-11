@@ -101,6 +101,10 @@ pub fn show(app: &mut PdfCraftApp, ui: &mut egui::Ui) {
                             let Some(g) = catalog::group(id) else { continue };
                             tool_card(app, ui, &t, g, false);
                         }
+                        // A hosted page opens no other file (`files_locked`).
+                        if app.files_locked {
+                            return;
+                        }
                         let (rect, resp) = ui.allocate_exact_size(vec2(170.0, 104.0), Sense::click());
                         resp.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Button, true, tl!("Open file")));
                         let press = theme::Press::track(ui, &resp);
@@ -158,8 +162,9 @@ pub fn show(app: &mut PdfCraftApp, ui: &mut egui::Ui) {
             }
 
             let mut clear = false;
-            // Preferences can turn the list off (#5572).
-            if app.recent_limit > 0 {
+            // Preferences can turn the list off (#5572), and a hosted page has none (`files_locked`).
+            let recent_shown = if app.files_locked { 0 } else { app.recent_limit };
+            if recent_shown > 0 {
                 ui.add_space(26.0);
                 ui.horizontal(|ui| {
                     ui.label(egui::RichText::new(tl!("Recent")).font(theme::semibold(17.0)));
@@ -178,7 +183,7 @@ pub fn show(app: &mut PdfCraftApp, ui: &mut egui::Ui) {
             }
             let mut open = None;
             let mut remove = None;
-            for r in app.recent.iter().take(app.recent_limit) {
+            for r in app.recent.iter().take(recent_shown) {
                 let (rect, resp) = ui.allocate_exact_size(vec2(ui.available_width(), 46.0), Sense::click());
                 resp.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Button, true, &r.name));
                 let press = theme::Press::track(ui, &resp);

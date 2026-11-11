@@ -3,6 +3,10 @@ use super::*;
 impl PdfCraftApp {
     /// Run a catalogue command. Commands that aren't implemented yet say which milestone ships them.
     pub fn run_command(&mut self, command: &str) {
+        // The palette and the tool panels come here, not through `dispatch_command`.
+        if self.locked_out(command) {
+            return;
+        }
         if let Some(spec) = pdfcraft_engine::commands::command(command) {
             use pdfcraft_engine::commands::Needs;
             // A tool that needs a document, chosen with none open, asks for the file and then
@@ -12,7 +16,8 @@ impl PdfCraftApp {
                 .iter()
                 .flat_map(|g| g.sections.iter().flat_map(|s| s.items.iter()))
                 .any(|i| i.command == spec.id);
-            if self.active.is_none() && needs_document && is_tool && !self.command_enabled(spec) {
+            // A hosted page asks for no other file: the tool says to open a document first.
+            if self.active.is_none() && needs_document && is_tool && !self.command_enabled(spec) && !self.files_locked {
                 self.open_then_run(spec);
                 return;
             }

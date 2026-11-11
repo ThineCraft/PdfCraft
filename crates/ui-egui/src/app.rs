@@ -195,6 +195,7 @@ impl PdfCraftApp {
             unsaved_flag: Default::default(),
             os_events: None,
             host_save: None,
+            files_locked: false,
             host_dirty: None,
             close_request: None,
             save_prompt_button: Default::default(),
@@ -572,7 +573,8 @@ impl PdfCraftApp {
         }
         #[cfg(target_arch = "wasm32")]
         self.process_signature_images();
-        let dropped = ctx.input(|i| i.raw.dropped_files.clone());
+        // A hosted page takes no dropped files (`files_locked`): they would open beside its document.
+        let dropped = if self.files_locked { Vec::new() } else { ctx.input(|i| i.raw.dropped_files.clone()) };
         #[cfg(not(target_arch = "wasm32"))]
         let dropped = self.drop_on_signature_pad(dropped);
         #[cfg(not(target_arch = "wasm32"))]

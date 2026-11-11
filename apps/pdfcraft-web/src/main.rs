@@ -64,6 +64,9 @@ fn main() {
                         }
                         bridge.listen(app.startup_inbox.clone(), cc.egui_ctx.clone());
                         app.host_save = Some(bridge.save_fn());
+                        // The host gave this page one document, and saves store the active tab:
+                        // no opening, creating or closing tabs here.
+                        app.files_locked = true;
                         app.host_dirty = Some(bridge.dirty_fn());
                         bridge.post_ready();
                     } else if query_param("host").as_deref() == Some("parent") {

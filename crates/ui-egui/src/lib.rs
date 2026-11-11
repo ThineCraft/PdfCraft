@@ -540,6 +540,11 @@ pub struct PdfCraftApp {
     pub os_events: Option<OsEventsFn>,
     /// Save delivers to the embedding page instead of downloading (web, see [`HostSaveFn`]).
     pub host_save: Option<HostSaveFn>,
+    /// A hosted page keeps the one document its host gave it: the person can't open, create or
+    /// close tabs (no Open, Open Recent, Close, New or Create, no recent list, no drops), so a
+    /// save can only ever store that document. The host's own open (`startup_inbox`) and its
+    /// commands through [`PdfCraftApp::execute`] still run. Off unless the web build is hosted.
+    pub files_locked: bool,
     /// Reports unsaved work, or an open OCR review, to the embedding page (web, see [`HostDirtyFn`]).
     pub host_dirty: Option<HostDirtyFn>,
     /// A pending "save changes?" question (closing a dirty tab or quitting).

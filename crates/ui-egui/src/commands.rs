@@ -870,8 +870,17 @@ impl PdfCraftApp {
         }
     }
 
+    /// Whether `id` opens, creates or closes a tab, which a hosted page refuses the person
+    /// (`files_locked`): a later save would store another document as the hosted one.
+    pub(crate) fn locked_out(&self, id: &str) -> bool {
+        self.files_locked && (matches!(id, "file.open" | "file.open_recent" | "file.close" | "file.close_all") || id.starts_with("create."))
+    }
+
     /// Run a registry command from its shortcut or a menu, which share this path.
-    pub(crate) fn dispatch_command(&mut self, ctx: &egui::Context, id: &'static str) {
+    pub fn dispatch_command(&mut self, ctx: &egui::Context, id: &'static str) {
+        if self.locked_out(id) {
+            return;
+        }
         let active = self.active_ids();
         let form_typing = active.and_then(|(i, _)| self.views.get(i)).is_some_and(|v| v.forms.focus.is_some());
         if form_typing {

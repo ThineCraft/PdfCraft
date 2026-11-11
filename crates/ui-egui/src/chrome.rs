@@ -75,7 +75,12 @@ pub fn tab_strip(app: &mut PdfCraftApp, ui: &mut egui::Ui) {
                 // Reserve the icon buttons and their gaps outside the scrolling tabs.
                 let controls_width = 3.0 * button + 54.0 + window_controls::width(&controls.right);
                 // Open stays in sight after the tabs: its icon, text and padding, and the gaps around it.
-                let open_width = ui.fonts_mut(|f| f.layout_no_wrap(tl!("Open").into(), theme::medium(13.0), t.text).size().x) + 38.0 + 12.0;
+                // A hosted page has no Open button (`files_locked`).
+                let open_width = if app.files_locked {
+                    0.0
+                } else {
+                    ui.fonts_mut(|f| f.layout_no_wrap(tl!("Open").into(), theme::medium(13.0), t.text).size().x) + 38.0 + 12.0
+                };
                 let mut tabs_width = (ui.available_width() - controls_width - open_width).max(0.0);
                 // Tabs shrink to share the strip (names end in "…") and scroll only once they reach
                 // their narrowest; then arrows either side say so and step through them.
@@ -147,6 +152,7 @@ pub fn tab_strip(app: &mut PdfCraftApp, ui: &mut egui::Ui) {
                                         cap,
                                         height: tab_h,
                                         draggable: true,
+                                        closable: !app.files_locked,
                                     },
                                     &mut close,
                                 );
@@ -193,6 +199,7 @@ pub fn tab_strip(app: &mut PdfCraftApp, ui: &mut egui::Ui) {
                                         cap,
                                         height: tab_h,
                                         draggable: false,
+                                        closable: true,
                                     },
                                     &mut close,
                                 );
@@ -236,7 +243,7 @@ pub fn tab_strip(app: &mut PdfCraftApp, ui: &mut egui::Ui) {
                 }
                 ui.add_space(4.0);
                 let tip = crate::commands::command_tip(ui.ctx(), tl!("Open a PDF ({key})"), "file.open");
-                if widgets::ghost_button_sized(ui, "plus", tl!("Open"), tab_h).on_hover_text(tip).clicked() {
+                if !app.files_locked && widgets::ghost_button_sized(ui, "plus", tl!("Open"), tab_h).on_hover_text(tip).clicked() {
                     app.open_dialog();
                 }
                 ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
@@ -289,7 +296,7 @@ fn appearance_menu(app: &mut PdfCraftApp, ui: &mut egui::Ui) {
 fn tab_menu(app: &PdfCraftApp, ui: &mut egui::Ui, index: usize, action: &mut Option<Action>) {
     let Some(view) = app.views.get(index) else { return };
     let (tab, id) = (view.view_key(), view.id);
-    if ui.button(tl!("Close Tab")).clicked() {
+    if ui.add_enabled(!app.files_locked, egui::Button::new(tl!("Close Tab"))).clicked() {
         *action = Some(Action::Close(tab));
         ui.close();
     }
@@ -395,6 +402,7 @@ pub(crate) fn pane_tab_strip(app: &mut PdfCraftApp, ui: &mut egui::Ui, strip: Re
             cap,
             height: inner.height(),
             draggable: true,
+            closable: !app.files_locked,
         };
         let response = tab(&mut row, spec, &mut close);
         slots.push((i, response.rect));
@@ -512,10 +520,12 @@ struct TabSpec<'a> {
     cap: Option<f32>,
     height: f32,
     draggable: bool,
+    /// Has a close button (a hosted page's document tab has none, `files_locked`).
+    closable: bool,
 }
 
 fn tab(ui: &mut egui::Ui, spec: TabSpec<'_>, close: &mut Option<usize>) -> egui::Response {
-    let TabSpec { id, theme: t, icon, name, file, dirty, active, index, cap, height, draggable } = spec;
+    let TabSpec { id, theme: t, icon, name, file, dirty, active, index, cap, height, draggable, closable } = spec;
     let font = theme::regular(13.0);
     let mut label = tab_name(name);
     // A shrunk tab shows as much of its name as fits (the tooltip has all of it).
@@ -554,17 +564,22 @@ fn tab(ui: &mut egui::Ui, spec: TabSpec<'_>, close: &mut Option<usize>) -> egui:
         ui.painter().galley(rect.min + vec2(28.0, (rect.height() - label_galley.size().y) / 2.0), label_galley.clone(), label_color);
     });
     let x_rect = Rect::from_center_size(rect.right_center() - vec2(16.0, 0.0), vec2(20.0, 20.0));
-    let x = ui.interact(x_rect, id.with("close"), Sense::click());
-    let x_press = theme::Press::track(ui, &x);
-    x_press.wash(ui, x_rect, 4, false);
-    // Unsaved changes: a dot where the close button sits, until the tab is hovered.
-    if dirty && !resp.hovered() && !x.hovered() {
+    if closable {
+        let x = ui.interact(x_rect, id.with("close"), Sense::click());
+        let x_press = theme::Press::track(ui, &x);
+        x_press.wash(ui, x_rect, 4, false);
+        // Unsaved changes: a dot where the close button sits, until the tab is hovered.
+        if dirty && !resp.hovered() && !x.hovered() {
+            ui.painter().circle_filled(x_rect.center(), 4.0, if active { t.text } else { t.text_muted });
+        } else if active || resp.hovered() || x.hovered() {
+            icons::paint(ui, x_rect.translate(x_press.offset()), "x", 13.0, t.text_muted);
+        }
+        if theme::hand(x).clicked() {
+            *close = Some(index);
+        }
+    } else if dirty {
+        // No close button: the unsaved-changes dot stays.
         ui.painter().circle_filled(x_rect.center(), 4.0, if active { t.text } else { t.text_muted });
-    } else if active || resp.hovered() || x.hovered() {
-        icons::paint(ui, x_rect.translate(x_press.offset()), "x", 13.0, t.text_muted);
-    }
-    if theme::hand(x).clicked() {
-        *close = Some(index);
     }
     let shown = match file {
         Some(file) => format!("{name}\n{file}"),
